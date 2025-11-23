@@ -10,6 +10,8 @@
 `conda activate <你的环境名字>`<br>
 最后安装包<br>
 `pip install -r requirements.txt`<br>
+注意：不建议用过高版本的python,torch以及其他相关包对3.14或3.13版本的python还没有做到完全支持，建议使用3.10到3.11的包，比如<br>
+`conda create -n <你的环境名字 python=3.11>`<br>
 ##  第一章 分词
 分词器是大模型预训练的初始步骤，大模型的训练的一般过程为将句子映射为相对应的词元id、词元id经过嵌入层映射为嵌入向量、并经过transformer层和前馈神经网络模块后，输出相应的结果。因此在给大模型训练前，需要先训练一个分词器
 ### BPE分词器
@@ -105,18 +107,18 @@ https://www.modelscope.cn/datasets/gongjy/minimind_dataset/files
 之后再在训练脚本train_pretrain.py的同级目录下，创建一个叫train.sh的脚本
 ```																	
 python train_pretrain.py \
-? ? --out_dir "weights" \
-? ? --device "cuda:0" \
-? ? --epochs 1 \
-? ? --batch_size 32 \
-? ? --learning_rate 5e-4 \
-? ? --accumulation_steps 8 \
-? ? --log_interval 100 \
-? ? --save_interval 100 \
-? ? --data_path "./dataset/pretrain_hq.jsonl"
+ --out_dir "weights" \
+ --device "cuda:0" \
+ --epochs 1 \
+ --batch_size 32 \
+ --learning_rate 5e-4 \
+ --accumulation_steps 8 \
+ --log_interval 100 \
+ --save_interval 100 \
+ --data_path "./dataset/pretrain_hq.jsonl"
 ```
 执行：<br>
-`bash train.py`<br>
+`bash train.sh`<br>
 就可以开始训练了，代码中有很多重要参数可以通过自己设置，来定义我们想要的模型规模、训练数据集文件、训练轮次、或者是否使用MoE模型等。可以自定义的参数一起作用如表所示：
 | 参数名称 | 描述 | 默认值 | 类型 |
 |----------|------|--------|------|
@@ -147,12 +149,12 @@ python train_pretrain.py \
 可以增加参数`dropout = 0.1`否则就是代码的默认值为0。
 ### 训练时间对比
 （因资源原因这边会之后继续补充）
-|处理器|显卡|批次大小|显卡数|训练轮次|训练时间（min）|
-|----------|------|---|------|------|---|
-| Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz   2.59 GHz（我的电脑） |NVIDIA GeForce GTX 1650 (4 GB), Intel(R) UHD Graphics 630 (128 MB)| 16 |1| 1 | 我的电脑c盘不足，运行会崩溃，但根据我的经验来看这点参数一般是可以运行的|
-| Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz | NVIDIA A40 (46 GB) | 16 | 1 |1|30|
-| Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz | NVIDIA A40 (46 GB) | 32 | 1 |2|训练中|
-| Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz | NVIDIA A40 (46 GB) | 64 | 1 |3|训练中|
+|处理器|显卡|批次大小|显卡数|训练轮次|训练时间|参数量（百万）|
+|----------|------|---|------|------|---|---|
+| Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz   2.59 GHz（我的电脑） |NVIDIA GeForce GTX 1650 (4 GB), Intel(R) UHD Graphics 630 (128 MB)| 16 |1| 1 | 我的电脑c盘不足，运行会崩溃，但根据我的经验来看这点参数一般是可以运行的|20.07|
+| Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz | NVIDIA A40 (46 GB) | 16 | 1 |1|30min|28.07|
+| Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz | NVIDIA A40 (46 GB) | 32 | 1 |2|20h|183.797 |
+| Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz | NVIDIA A40 (46 GB) | 64 | 1 |3|训练中|272.418|
 
 
 
