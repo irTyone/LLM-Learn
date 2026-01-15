@@ -2,111 +2,51 @@
 
 在大模型完成预训练与监督微调之后，模型已经具备较强的语言建模能力，但在输出偏好、人类价值对齐、安全性与稳定性方面仍存在不足。因此，通常需要在 SFT 之后引入强化学习对齐阶段，通过偏好数据或奖励信号进一步优化模型输出。目前主流的大模型强化对齐方法主要包括 DPO、PPO、GPO 以及 GRPO，它们在目标函数形式、工程复杂度和资源消耗上各有不同。
 
-DPO（Direct Preference Optimization）是一种直接基于偏好对进行优化的方法，不再显式训练奖励模型，也不使用传统强化学习中的策略采样机制。设在同一输入 \(x\) 下，\(y^+\) 为偏好回答，\(y^-\) 为非偏好回答，\(\pi_\theta\) 表示当前策略模型，\(\pi_{\text{ref}}\) 表示冻结的参考模型，则 DPO 的优化目标为：
+DPO（Direct Preference Optimization）是一种直接基于偏好对进行优化的方法，不再显式训练奖励模型，也不使用传统强化学习中的策略采样机制。设在同一输入 x 下，y⁺ 为偏好回答，y⁻ 为非偏好回答，π_θ 表示当前策略模型，π_ref 表示冻结的参考模型，则 DPO 的优化目标为：
 
-$$
-\mathcal{L}_{\text{DPO}}
-=
-- \mathbb{E}_{(x,y^+,y^-)}
-\left[
-\log \sigma
-\left(
-\beta
-\left(
-\log \pi_\theta(y^+|x)
--
-\log \pi_\theta(y^-|x)
--
-\left(
-\log \pi_{\text{ref}}(y^+|x)
--
-\log \pi_{\text{ref}}(y^-|x)
-\right)
-\right)
-\right)
-\right]
-$$
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.image?\mathcal{L}_{\text{DPO}}=-\mathbb{E}_{(x,y^+,y^-)}\left[\log\sigma\left(\beta\left(\log\pi_\theta(y^+|x)-\log\pi_\theta(y^-|x)-\left(\log\pi_{\text{ref}}(y^+|x)-\log\pi_{\text{ref}}(y^-|x)\right)\right)\right)\right]" />
+</p>
 
-其中 \(\sigma(\cdot)\) 为 Sigmoid 函数，\(\beta\) 为温度系数，用于控制策略模型偏离参考模型的程度。该目标函数鼓励模型在相对概率上更偏向优选回答，同时通过参考模型项约束更新幅度，从而保证训练稳定性。
+其中 σ(·) 为 Sigmoid 函数，β 为温度系数，用于控制策略模型偏离参考模型的程度。该目标函数鼓励模型在相对概率上更偏向优选回答，同时通过参考模型项约束更新幅度，从而保证训练稳定性。
 
 PPO（Proximal Policy Optimization）是 RLHF 体系中最经典的策略优化算法，其核心思想是在最大化期望奖励的同时，通过裁剪或 KL 约束限制策略更新幅度。PPO 的核心目标函数为：
 
-$$
-\mathcal{L}_{\text{PPO}}
-=
-\mathbb{E}_t
-\left[
-\min
-\left(
-r_t(\theta) A_t,\;
-\text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) A_t
-\right)
-\right]
-$$
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.image?\mathcal{L}_{\text{PPO}}=\mathbb{E}_t\left[\min\left(r_t(\theta)A_t,\;\text{clip}(r_t(\theta),1-\epsilon,1+\epsilon)A_t\right)\right]" />
+</p>
 
 其中
 
-$$
-r_t(\theta)
-=
-\frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}
-$$
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.image?r_t(\theta)=\frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}" />
+</p>
 
-\(A_t\) 为优势函数，\(\epsilon\) 为裁剪阈值。在语言模型对齐任务中，通常还会加入 KL 约束项：
+A_t 为优势函数，ε 为裁剪阈值。在语言模型对齐任务中，通常还会加入 KL 约束项：
 
-$$
-\mathcal{L}
-=
-\mathcal{L}_{\text{PPO}}
--
-\lambda \, \text{KL}(\pi_\theta \,\|\, \pi_{\text{ref}})
-$$
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.image?\mathcal{L}=\mathcal{L}_{\text{PPO}}-\lambda\,\text{KL}(\pi_\theta\|\pi_{\text{ref}})" />
+</p>
 
 PPO 需要同时维护策略模型、参考模型和奖励模型，并进行在线采样，因此显存与算力开销显著高于 DPO。
 
 GPO（Generalized / Grouped Policy Optimization）是 PPO 的一种泛化形式，其核心思想是通过分组或聚合多个样本来降低奖励噪声。在 GPO 中，优势函数由组级别统计量估计，其目标函数可表示为：
 
-$$
-\mathcal{L}_{\text{GPO}}
-=
-\mathbb{E}_g
-\left[
-\mathbb{E}_{t \in g}
-\left[
-\min
-\left(
-r_t A_g,\;
-\text{clip}(r_t, 1-\epsilon, 1+\epsilon) A_g
-\right)
-\right]
-\right]
-$$
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.image?\mathcal{L}_{\text{GPO}}=\mathbb{E}_g\left[\mathbb{E}_{t\in g}\left[\min\left(r_tA_g,\;\text{clip}(r_t,1-\epsilon,1+\epsilon)A_g\right)\right]\right]" />
+</p>
 
-其中 \(g\) 表示一个样本组，\(A_g\) 为组级别优势估计。GPO 在形式上仍属于 PPO 框架，因此依然依赖奖励模型和 KL 约束，其资源消耗与 PPO 接近，但在噪声较大的偏好数据场景中更稳定。
+其中 g 表示一个样本组，A_g 为组级别优势估计。GPO 在形式上仍属于 PPO 框架，因此依然依赖奖励模型和 KL 约束，其资源消耗与 PPO 接近，但在噪声较大的偏好数据场景中更稳定。
 
-GRPO（Group Relative Policy Optimization）是一种不依赖显式奖励模型的相对策略优化方法。设在同一输入 \(x\) 下采样得到 \(n\) 个候选回答 \(\{y_1,\dots,y_n\}\)，GRPO 通过组内相对对数概率构造隐式优势，其目标函数可写为：
+GRPO（Group Relative Policy Optimization）是一种不依赖显式奖励模型的相对策略优化方法。设在同一输入 x 下采样得到 n 个候选回答 {y₁,…,yₙ}，GRPO 通过组内相对对数概率构造隐式优势，其目标函数可写为：
 
-$$
-\mathcal{L}_{\text{GRPO}}
-=
--
-\mathbb{E}
-\left[
-\sum_{i=1}^{n}
-\log \pi_\theta(y_i|x)
-\left(
-\log \pi_\theta(y_i|x)
--
-\frac{1}{n}
-\sum_{j=1}^{n}
-\log \pi_\theta(y_j|x)
-\right)
-\right]
-$$
+<p align="center">
+  <img src="https://latex.codecogs.com/svg.image?\mathcal{L}_{\text{GRPO}}=-\mathbb{E}\left[\sum_{i=1}^{n}\log\pi_\theta(y_i|x)\left(\log\pi_\theta(y_i|x)-\frac{1}{n}\sum_{j=1}^{n}\log\pi_\theta(y_j|x)\right)\right]" />
+</p>
 
 该方法通过组内相对概率差异进行优化，使高概率输出得到强化、低概率输出被抑制。GRPO 在思想上介于 DPO 与 PPO 之间，不需要奖励模型，工程复杂度和显存开销低于 PPO、高于 DPO。
 
-综合来看，DPO 与 GRPO 更适合中小模型或资源受限场景，PPO 与 GPO 则在高质量人工反馈和大规模算力条件下具有更强的对齐能力。本文所示的 DPO 训练代码即是当前在稳定性、效果与资源消耗之间取得良好平衡的一种代表实现。
+综合来看，DPO 与 GRPO 更适合中小模型或资源受限场景，PPO 与 GPO 则在高质量人工反馈和大规模算力条件下具有
 
 ### 代码实现
 以下以train_dpo.py作为例子运行。<br>
