@@ -51,7 +51,9 @@ loss = (alpha * ce_loss + (1 - alpha) * distill_loss) / args.accumulation_steps
 nohup python train_distillation.py \
     --epochs 6 \
     --batch_size 32 \
-    --learning_rate 5e-6 \
+    --learning_rate 5e-6 \from_teacher_weight 指向的是已经完成 SFT、LoRA 和 DPO 的教师模型权重，这是蒸馏中唯一需要加载的权重文件
+
+student_hidden_size 和 student_num_layers 仅定义学生模型结构，源代码中不会尝试加载学生权重，因此学生模型会自动随机初始化
     --device cuda:0 \
     --accumulation_steps 1 \
     --log_interval 100 \
